@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment (venv folder - don't upload)
+venv/
+
+# Large model files (too big for GitHub)
+data/test.csv
+data/train.csv
+data/val.csv
+models/model_epoch_64.pth
+models/best_nepali_to_eng.pth
+models/epoch_checkpoints/
+models/tensorboard/
+
+# Audio output
+output.mp3
+
+

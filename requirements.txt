@@ -1,0 +1,17 @@
+torch
+torchvision
+torchaudio
+numpy
+pandas
+tqdm
+matplotlib
+nltk
+tokenizers
+sentencepiece
+gTTS
+tensorboard
+ipython
+flask
+sounddevice
+librosa
+transformers

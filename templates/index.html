@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nepali Speech Translator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 48px;
+            width: 600px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #e94560, #0f3460);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+            margin-bottom: 40px;
+        }
+
+        .record-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #e94560, #c62a47);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(233, 69, 96, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 0 auto 40px;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(233, 69, 96, 0.6);
+        }
+
+        .record-btn:disabled {
+            background: linear-gradient(135deg, #555, #444);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .mic-icon { font-size: 36px; }
+
+        .status {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 32px;
+            min-height: 20px;
+        }
+
+        .status.recording { color: #e94560; animation: pulse 1s infinite; }
+        .status.processing { color: #f5a623; }
+        .status.done { color: #4caf50; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .results { display: none; }
+
+        .result-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .result-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 8px;
+        }
+
+        .result-text {
+            font-size: 16px;
+            color: white;
+            line-height: 1.6;
+        }
+
+        .nepali-box  { border-left: 3px solid #e94560; }
+        .english-box { border-left: 3px solid #4caf50; }
+        .audio-box   { border-left: 3px solid #2196f3; text-align: center; }
+
+        audio {
+            width: 100%;
+            margin-top: 8px;
+            border-radius: 8px;
+        }
+
+        .arrow {
+            font-size: 20px;
+            color: rgba(255,255,255,0.3);
+            margin: 8px 0;
+        }
+
+        .error-box {
+            background: rgba(233, 69, 96, 0.1);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            color: #e94560;
+            display: none;
+            margin-bottom: 16px;
+        }
+
+        .timer {
+            font-size: 48px;
+            font-weight: 700;
+            color: #e94560;
+            display: none;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎙️ Nepali Speech Translator</h1>
+    <p class="subtitle">Speak in Nepali → Get English speech output</p>
+
+    <div class="timer" id="timer">10</div>
+
+    <button class="record-btn" id="recordBtn" onclick="startTranslation()">
+        <span class="mic-icon">🎤</span>
+        <span>Speak</span>
+    </button>
+
+    <div class="status" id="status">Click the button and speak in Nepali</div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="results" id="results">
+        <div class="result-box nepali-box">
+            <div class="result-label">Nepali (Transcribed)</div>
+            <div class="result-text" id="nepaliText"></div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <div class="result-box english-box">
+            <div class="result-label">English (Translated)</div>
+            <div class="result-text" id="englishText"></div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <div class="result-box audio-box">
+            <div class="result-label">English Audio</div>
+            <audio id="audioPlayer" controls autoplay></audio>
+        </div>
+    </div>
+</div>
+
+<script>
+    let countdown;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    function startTranslation() {
+        const btn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+        const timer = document.getElementById('timer');
+        const results = document.getElementById('results');
+        const errorBox = document.getElementById('errorBox');
+
+        results.style.display = 'none';
+        errorBox.style.display = 'none';
+        btn.disabled = true;
+
+        const duration = 10; // seconds
+        timer.style.display = 'block';
+        let seconds = duration;
+        timer.textContent = seconds;
+        status.textContent = 'Recording... Speak in Nepali now!';
+        status.className = 'status recording';
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size) audioChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    timer.style.display = 'none';
+                    status.textContent = ' Processing...';
+                    status.className = 'status processing';
+                    callBackend(blob);
+                };
+                mediaRecorder.start();
+
+                countdown = setInterval(() => {
+                    seconds--;
+                    timer.textContent = seconds;
+                    if (seconds <= 0) {
+                        clearInterval(countdown);
+                        mediaRecorder.stop();
+                    }
+                }, 1000);
+            })
+            .catch(err => {
+                btn.disabled = false;
+                timer.style.display = 'none';
+                errorBox.textContent = 'Microphone access denied: ' + err.message;
+                errorBox.style.display = 'block';
+                status.textContent = 'Allow microphone to use speech.';
+                status.className = 'status';
+            });
+    }
+
+    function callBackend(audioBlob) {
+        const btn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+        const errorBox = document.getElementById('errorBox');
+
+        const formData = new FormData();
+        if (audioBlob) formData.append('audio', audioBlob, 'recording.webm');
+
+        fetch('/translate', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+
+                if (data.success) {
+                    document.getElementById('nepaliText').textContent = data.nepali_text;
+                    document.getElementById('englishText').textContent = data.english_text;
+                    const audio = document.getElementById('audioPlayer');
+                    audio.src = data.audio_url + '?t=' + Date.now();
+                    audio.load();
+                    audio.play();
+                    document.getElementById('results').style.display = 'block';
+                    status.textContent = 'Done!';
+                    status.className = 'status done';
+                } else {
+                    errorBox.textContent = 'Error: ' + data.error;
+                    errorBox.style.display = 'block';
+                    status.textContent = 'Something went wrong.';
+                    status.className = 'status';
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                errorBox.textContent = 'Connection error: ' + err.message;
+                errorBox.style.display = 'block';
+                status.textContent = 'Connection failed.';
+                status.className = 'status';
+            });
+    }
+</script>
+</body>
+</html>
